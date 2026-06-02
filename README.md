@@ -1,5 +1,10 @@
 # mac-cache-cleanup
 
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
+[![Platform: macOS](https://img.shields.io/badge/platform-macOS-lightgrey.svg)](https://www.apple.com/macos/)
+[![Shell: bash](https://img.shields.io/badge/shell-bash-4EAA25.svg)](#requirements)
+[![Release](https://img.shields.io/github/v/release/krisarmstrong/mac-cache-cleanup?sort=semver)](https://github.com/krisarmstrong/mac-cache-cleanup/releases)
+
 A small collection of **independent** macOS maintenance tools that quit a
 Microsoft app, clear its stale cache, and relaunch it on a daily schedule
 (launchd, 06:00). Built to fix stale web content — most notably the **Dynamics
