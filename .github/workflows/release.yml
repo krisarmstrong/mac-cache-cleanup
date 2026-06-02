@@ -1,0 +1,40 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Existing tag to (re)build a release for, e.g. v1.0.0"
+        required: true
+
+permissions:
+  contents: write # needed to create a GitHub Release and upload assets
+
+jobs:
+  release:
+    name: Build archives and publish release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build dist archives
+        run: ./scripts/build-zips.sh
+
+      - name: Publish release with archives
+        env:
+          GH_TOKEN: ${{ github.token }}
+          # Tag comes from the pushed ref, or the manual dispatch input — never
+          # interpolated directly into the shell.
+          TAG: ${{ github.event.inputs.tag || github.ref_name }}
+        run: |
+          set -euo pipefail
+          echo "Releasing $TAG"
+          # Create the release if it doesn't exist yet, then (re)upload assets.
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            gh release create "$TAG" \
+              --title "$TAG" \
+              --generate-notes
+          fi
+          gh release upload "$TAG" dist/*.zip --clobber

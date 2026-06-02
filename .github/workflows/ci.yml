@@ -1,0 +1,85 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SHFMT_VERSION: v3.13.1
+  # shfmt style: 2-space indent, indent switch cases, binary ops at line start.
+  SHFMT_FLAGS: -i 2 -ci -bn
+
+jobs:
+  lint:
+    name: Lint (shellcheck + shfmt)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: shellcheck
+        run: |
+          shellcheck --version
+          # All tracked shell scripts (installers, cleaners, helpers).
+          mapfile -t files < <(git ls-files '*.sh')
+          printf 'Checking %d scripts\n' "${#files[@]}"
+          shellcheck -S warning "${files[@]}"
+
+      - name: Install shfmt ${{ env.SHFMT_VERSION }}
+        run: |
+          curl -fsSL \
+            "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" \
+            -o /usr/local/bin/shfmt
+          chmod +x /usr/local/bin/shfmt
+          shfmt --version
+
+      - name: shfmt (formatting check)
+        run: |
+          # shellcheck disable=SC2086
+          shfmt $SHFMT_FLAGS -d $(git ls-files '*.sh')
+
+  build:
+    name: Build dist archives
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build zips
+        run: ./scripts/build-zips.sh
+      - name: Upload archives
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/*.zip
+          if-no-files-found: error
+
+  smoke:
+    name: Smoke test installers (macOS)
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install / verify / uninstall each package into a throwaway HOME
+        run: |
+          set -euo pipefail
+          for pkg in clear-outlook-cache clear-teams-cache clear-browsers; do
+            echo "::group::$pkg"
+            tmp="$(mktemp -d)"
+            HOME="$tmp" "./$pkg/install.sh" --time 06:00 </dev/null
+            plist="$(ls "$tmp"/Library/LaunchAgents/*.plist)"
+            plutil -lint "$plist"
+            grep -q '<string>local\.' "$plist" || { echo "label is not local.*"; exit 1; }
+            grep -q 'krisarmstrong' "$plist" && { echo "personal name leaked into plist"; exit 1; }
+            # custom time must land in the plist
+            HOME="$tmp" "./$pkg/install.sh" --time 23:45 </dev/null >/dev/null
+            grep -A1 '<key>Hour</key>' "$plist" | grep -q '<integer>23</integer>' \
+              || { echo "custom time not applied"; exit 1; }
+            HOME="$tmp" "./$pkg/install.sh" uninstall </dev/null
+            [ -z "$(ls -A "$tmp"/Library/LaunchAgents 2>/dev/null)" ] \
+              || { echo "uninstall left files behind"; exit 1; }
+            rm -rf "$tmp"
+            echo "::endgroup::"
+          done
+          echo "All installers passed."

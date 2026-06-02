@@ -1,0 +1,7 @@
+# ShellCheck configuration — https://www.shellcheck.net
+# These scripts are bash (not POSIX sh); the shebang declares it, but set the
+# default shell explicitly so editor integrations agree with CI.
+shell=bash
+
+# Allow `source`/external files that ShellCheck can't follow at lint time.
+external-sources=true
