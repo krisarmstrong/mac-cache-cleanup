@@ -1,0 +1,59 @@
+name: Bug report
+description: Something isn't clearing, the schedule isn't firing, or the installer failed.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report! Please fill in what you can — the log and macOS
+        version are the most useful bits.
+  - type: dropdown
+    id: package
+    attributes:
+      label: Which tool?
+      options:
+        - clear-outlook-cache
+        - clear-teams-cache
+        - clear-browsers
+        - install-all (more than one)
+        - not sure
+    validations:
+      required: true
+  - type: input
+    id: macos
+    attributes:
+      label: macOS version
+      placeholder: "e.g. 15.5 (Sequoia)"
+    validations:
+      required: true
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Install scope
+      options:
+        - Single user (default)
+        - All users (sudo --all-users)
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: |
+        From `~/Library/Logs/<tool>.log` (e.g. clear-outlook-cache.log). This is
+        rendered as code, so no backticks needed.
+      render: text
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. ./install.sh --time ...
+        2. ...

@@ -19,7 +19,7 @@ jobs:
     name: Lint (shellcheck + shfmt)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: shellcheck
         run: |
@@ -46,11 +46,11 @@ jobs:
     name: Build dist archives
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build zips
         run: ./scripts/build-zips.sh
       - name: Upload archives
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist/*.zip
@@ -60,7 +60,7 @@ jobs:
     name: Smoke test installers (macOS)
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Install / verify / uninstall each package into a throwaway HOME
         run: |
           set -euo pipefail

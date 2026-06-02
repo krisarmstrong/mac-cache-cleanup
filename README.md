@@ -87,6 +87,16 @@ it next boots/wakes and you log in.
 
 macOS. Uses `/bin/bash` (preinstalled) — no dependencies to install.
 
+## Issues & contributing
+
+- **Bug or feature idea?** Open an [issue](https://github.com/krisarmstrong/mac-cache-cleanup/issues/new/choose)
+  (bug report and feature request templates provided).
+- **"How do I…" question?** Use [Discussions](https://github.com/krisarmstrong/mac-cache-cleanup/discussions).
+- **Security issue?** See [SECURITY.md](SECURITY.md) — report privately, not as a public issue.
+- **Pull requests** are welcome; CI runs ShellCheck + shfmt and a macOS
+  install/uninstall smoke test, so run those locally first (see the PR
+  checklist).
+
 ## License
 
 Apache-2.0 — see [LICENSE](LICENSE). Copyright (c) 2026 Kris Armstrong.

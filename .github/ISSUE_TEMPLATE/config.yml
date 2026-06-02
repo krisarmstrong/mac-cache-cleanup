@@ -1,0 +1,6 @@
+# Require people to pick a template (bug or feature) rather than filing blanks.
+blank_issues_enabled: false
+contact_links:
+  - name: Question or usage help
+    url: https://github.com/krisarmstrong/mac-cache-cleanup/discussions
+    about: For "how do I…" questions, use Discussions instead of an issue.
