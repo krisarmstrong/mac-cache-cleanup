@@ -12,7 +12,7 @@
 #
 # Author:  Kris Armstrong <kris.armstrong@icloud.com>
 # License: Apache-2.0 (SPDX-License-Identifier: Apache-2.0) — see LICENSE
-# Repo:    ~/Developer/clear-outlook-cache
+# Repo:    ~/Developer/mac-cache-cleanup/clear-outlook-cache
 # Created: 2026-06-02
 #
 set -uo pipefail

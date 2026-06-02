@@ -38,9 +38,10 @@ log() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$LOG"; }
 clear_contents() {
   local dir="$1" label="$2" count=0
   case "$dir" in
-    "$BACKGROUNDS"|"$BACKGROUNDS"/*)
+    "$BACKGROUNDS" | "$BACKGROUNDS"/*)
       log "$label: REFUSED to clear protected backgrounds path: $dir"
-      return 0 ;;
+      return 0
+      ;;
   esac
   if [ ! -d "$dir" ]; then
     log "$label: folder absent — skipping ($dir)"
@@ -64,9 +65,10 @@ clear_contents() {
 nuke() {
   local path="$1" label="$2"
   case "$path" in
-    "$BACKGROUNDS"|"$BACKGROUNDS"/*)
+    "$BACKGROUNDS" | "$BACKGROUNDS"/*)
       log "$label: REFUSED to delete protected backgrounds path: $path"
-      return 0 ;;
+      return 0
+      ;;
   esac
   [ -e "$path" ] || return 0
   if rm -rf -- "$path" 2>>"$LOG"; then
@@ -118,7 +120,7 @@ main() {
     # Top-level (non-profile) caches.
     local t
     for t in GPUCache ShaderCache GrShaderCache GraphiteDawnCache \
-             component_crx_cache extensions_crx_cache; do
+      component_crx_cache extensions_crx_cache; do
       nuke "$EBWEBVIEW/$t" "EBWebView"
     done
 

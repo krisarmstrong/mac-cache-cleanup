@@ -153,14 +153,14 @@ main() {
   safari_run="$(quit_app 'Safari' 'Safari')"
 
   wipe_chromium "$HOME_DIR/Library/Application Support/Google/Chrome" \
-                "$HOME_DIR/Library/Caches/Google/Chrome" "Chrome"
+    "$HOME_DIR/Library/Caches/Google/Chrome" "Chrome"
   wipe_chromium "$HOME_DIR/Library/Application Support/Microsoft Edge" \
-                "$HOME_DIR/Library/Caches/Microsoft Edge" "Edge"
+    "$HOME_DIR/Library/Caches/Microsoft Edge" "Edge"
   wipe_safari
 
   # Reopen only the browsers that were running before the wipe.
   [ -n "$chrome_run" ] && relaunch "Google Chrome"
-  [ -n "$edge_run" ]   && relaunch "Microsoft Edge"
+  [ -n "$edge_run" ] && relaunch "Microsoft Edge"
   [ -n "$safari_run" ] && relaunch "Safari"
 
   log "=== Browser wipe complete ==="
