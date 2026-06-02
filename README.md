@@ -23,12 +23,12 @@ share, or remove any single one on its own.
 |---|---|---|---|
 | [`clear-outlook-cache`](clear-outlook-cache/) | Outlook `Caches` + `WebKit` | No | `local.clearoutlookcache` |
 | [`clear-teams-cache`](clear-teams-cache/) | Teams web cache (keeps login + backgrounds) | No | `local.clearteamscache` |
-| [`clear-browsers`](clear-browsers/) | Chrome/Edge/Safari **full wipe** (cache, cookies, history) | **Yes** | `local.clearbrowsers` |
+| [`clear-browsers`](clear-browsers/) | Chrome/Edge/Safari caches (cookies + history only with `--full`) | No¹ | `local.clearbrowsers` |
 
-> ⚠️ `clear-browsers` is aggressive by design: it logs you out of every site and
-> erases history daily, and (Safari only) needs Full Disk Access. Read its
-> README before installing. The Outlook and Teams tools are non-destructive to
-> your logins.
+> ¹ `clear-browsers` defaults to a **light** cleanup that keeps you logged in
+> (caches only). Its opt-in `--full` mode wipes cookies + history (logs you out
+> of every site) and needs Full Disk Access for Safari — read its README before
+> using `--full`. All three tools are non-destructive to your logins by default.
 
 ## Install
 
@@ -74,6 +74,18 @@ sudo ./install-all.sh --all-users           # all packages, all users
 sudo ./install-all.sh --all-users uninstall # remove the all-users install
 ```
 
+### Browser modes (clear-browsers only)
+
+The browser tool defaults to a **light** cleanup (caches only — you stay logged
+in). Two optional flags, forwarded through `install-all.sh` too; see the
+[clear-browsers README](clear-browsers/) for details:
+
+```bash
+./install.sh --full                # also wipe cookies + history (logs you out)
+./install.sh --only chrome,edge    # only these browsers (default: all installed)
+~/Library/Scripts/clear-browsers.sh --dry-run   # preview deletions, delete nothing
+```
+
 If macOS blocks downloaded scripts ("cannot be opened"), clear quarantine once
 in the unzipped folder: `xattr -dr com.apple.quarantine .`
 
@@ -86,6 +98,12 @@ it next boots/wakes and you log in.
 ## Requirements
 
 macOS. Uses `/bin/bash` (preinstalled) — no dependencies to install.
+
+> **zsh users:** nothing special needed. Your interactive shell doesn't matter —
+> the scripts run under `/bin/bash` via their shebang, and the launchd jobs call
+> `/bin/bash` explicitly. They're written to work on Apple's stock bash 3.2.
+> (Just don't run them manually with `zsh`/`sh` — use `./install.sh` or the
+> installed script directly so the shebang picks bash.)
 
 ## Issues & contributing
 

@@ -44,6 +44,13 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --all-users) ALL_USERS=1 ;;
     uninstall | --uninstall) ACTION="uninstall" ;;
+    # Browser-only flags — accepted and ignored so `install-all --full
+    # --only ...` forwards cleanly to every package.
+    --full) ;;
+    --only)
+      shift
+      ;;
+    --only=*) ;;
     --time)
       [ $# -ge 2 ] || {
         echo "ERROR: --time needs HH:MM" >&2

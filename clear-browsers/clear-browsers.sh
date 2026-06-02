@@ -1,23 +1,30 @@
 #!/bin/bash
 #
 # clear-browsers.sh
-# Full daily wipe of cache + cookies + site data + history for Chrome, Edge,
-# and Safari, then reopens whichever browsers were running.
+# Daily cleanup of Chrome, Edge, and Safari, then reopens whichever browsers
+# were running. Two modes:
 #
-# PRESERVED (NOT deleted): bookmarks, saved passwords, extensions, settings,
-# autofill/search engines. We delete a curated allowlist of cache/cookie/
-# storage/history items per profile — never the whole profile.
+#   (default) light  — clear caches + service workers only. You stay LOGGED IN;
+#                      cookies, local storage, and history are kept. Fixes stale
+#                      web content without a daily re-login.
+#   --full           — also wipe cookies + site storage + history (logs you out
+#                      of every site, erases history). The original behavior.
+#   --only <list>    — only act on these browsers (comma-separated: chrome,edge,
+#                      safari). Default: all installed ones. Browsers that aren't
+#                      installed are skipped automatically regardless.
+#   --dry-run, -n    — report what WOULD be deleted (with sizes); delete nothing
+#                      and do not quit/relaunch anything.
 #
-# CONSEQUENCES: you are logged out of every site in these browsers and all
-# history is erased on each run. If browser Sync is on, the history/cookie
-# deletion may propagate to your other devices.
+# PRESERVED in BOTH modes: bookmarks, saved passwords, extensions, settings,
+# autofill/search engines. We only ever delete a curated allowlist — never a
+# whole profile.
 #
-# SAFARI requires Full Disk Access granted to /bin/bash (see README). Without
-# it, the Safari steps fail with "Operation not permitted" — logged, not fatal.
+# SAFARI: --full needs Full Disk Access granted to /bin/bash (see README).
+# Light mode only touches Safari's cache and usually works without it.
 #
 # Author:  Kris Armstrong <kris.armstrong@icloud.com>
 # License: Apache-2.0 (SPDX-License-Identifier: Apache-2.0) — see LICENSE
-# Repo:    ~/Developer/clear-outlook-cache
+# Repo:    ~/Developer/mac-cache-cleanup/clear-browsers
 # Created: 2026-06-02
 #
 set -uo pipefail
@@ -31,12 +38,68 @@ HOME_DIR="${HOME}"
 LOG="$HOME_DIR/Library/Logs/clear-browsers.log"
 # -----------------------------------------------------------------------------
 
+MODE="light"
+DRY_RUN=0
+ONLY="" # empty = all installed browsers
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --full) MODE="full" ;;
+    --light) MODE="light" ;;
+    --dry-run | -n) DRY_RUN=1 ;;
+    --only)
+      [ $# -ge 2 ] || {
+        echo "clear-browsers.sh: --only needs a list (chrome,edge,safari)" >&2
+        exit 1
+      }
+      ONLY="$2"
+      shift
+      ;;
+    --only=*) ONLY="${1#*=}" ;;
+    *)
+      echo "clear-browsers.sh: unknown argument: $1" >&2
+      echo "usage: clear-browsers.sh [--full] [--only chrome,edge,safari] [--dry-run]" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
+# Normalize ONLY to a space-padded, lowercase set for membership tests, and
+# validate the names so a typo (e.g. "chorme") fails loudly instead of silently
+# cleaning nothing.
+ONLY="$(printf '%s' "$ONLY" | tr 'A-Z,' 'a-z ')"
+for _name in $ONLY; do
+  case "$_name" in
+    chrome | edge | safari) ;;
+    *)
+      echo "clear-browsers.sh: --only: unknown browser '$_name' (use chrome,edge,safari)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+# want <browser>: true if this browser should be acted on (no --only = all).
+want() {
+  [ -z "${ONLY// /}" ] && return 0
+  case " $ONLY " in
+    *" $1 "*) return 0 ;;
+    *) return 1 ;;
+  esac
+}
+
 log() { printf '%s  %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >>"$LOG"; }
 
-# rm -rf a path if it exists; log the outcome. Safe under `set -u`.
+# Delete a path if it exists; log the outcome. In --dry-run, report the path
+# and its size but delete nothing. Safe under `set -u`.
 nuke() {
   local path="$1"
   [ -e "$path" ] || return 0
+  if [ "$DRY_RUN" -eq 1 ]; then
+    local size
+    size="$(du -sh "$path" 2>/dev/null | cut -f1)"
+    log "  would delete: ${path/#$HOME_DIR/~} (${size:-?})"
+    return 0
+  fi
   if rm -rf -- "$path" 2>>"$LOG"; then
     log "  deleted: ${path/#$HOME_DIR/~}"
   else
@@ -74,7 +137,7 @@ relaunch() {
   open -a "$appname" 2>>"$LOG" || log "$appname: relaunch failed"
 }
 
-# --- Chromium-family wipe (Chrome / Edge share this layout) ------------------
+# --- Chromium-family cleanup (Chrome / Edge share this layout) ---------------
 # $1 = browser support dir, $2 = top-level cache dir, $3 = label
 wipe_chromium() {
   local support="$1" topcache="$2" label="$3"
@@ -83,28 +146,35 @@ wipe_chromium() {
     return 0
   fi
 
-  # Top-level (non-profile) cache.
+  # Top-level (non-profile) cache — pure cache, cleared in both modes.
   nuke "$topcache"
 
-  # Per-profile items. Default + numbered + Guest profiles.
-  shopt -s nullglob
-  local profiles=("$support/Default" "$support/Profile "* "$support/Guest Profile" "$support/System Profile")
-  shopt -u nullglob
-
-  local relpaths=(
+  # Cache/service-worker items: cleared in BOTH modes (no login impact).
+  local cache_relpaths=(
     "Cache" "Code Cache" "GPUCache" "DawnCache" "GrShaderCache" "ShaderCache"
-    "Service Worker" "IndexedDB" "Local Storage" "Session Storage"
+    "Service Worker" "Session Storage"
+  )
+  # Login/identity/history items: cleared ONLY in --full mode.
+  local full_relpaths=(
+    "IndexedDB" "Local Storage"
     "Network/Cookies" "Network/Cookies-journal"
     "Cookies" "Cookies-journal"
     "History" "History-journal" "History-wal" "History-shm"
     "Top Sites" "Top Sites-journal"
     "Visited Links"
   )
+  local relpaths=("${cache_relpaths[@]}")
+  [ "$MODE" = "full" ] && relpaths+=("${full_relpaths[@]}")
+
+  # Default + numbered + Guest profiles.
+  shopt -s nullglob
+  local profiles=("$support/Default" "$support/Profile "* "$support/Guest Profile" "$support/System Profile")
+  shopt -u nullglob
 
   local p rel
   for p in "${profiles[@]}"; do
     [ -d "$p" ] || continue
-    log "$label: wiping profile ${p##*/}"
+    log "$label: cleaning profile ${p##*/}"
     for rel in "${relpaths[@]}"; do
       nuke "$p/$rel"
     done
@@ -112,58 +182,79 @@ wipe_chromium() {
   log "$label: done"
 }
 
-# --- Safari wipe (requires Full Disk Access) ---------------------------------
+# --- Safari cleanup ----------------------------------------------------------
+# Light mode clears only the cache. --full also wipes history, site storage,
+# and cookies (and needs Full Disk Access for those container paths).
 wipe_safari() {
   local container="$HOME_DIR/Library/Containers/com.apple.Safari/Data/Library"
   if [ ! -d "$HOME_DIR/Library/Safari" ] && [ ! -d "$container" ]; then
     log "Safari: not present — skipping"
     return 0
   fi
-  log "Safari: wiping history, cache, cookies, site data"
 
-  # History.
-  nuke "$HOME_DIR/Library/Safari/History.db"
-  nuke "$HOME_DIR/Library/Safari/History.db-wal"
-  nuke "$HOME_DIR/Library/Safari/History.db-shm"
-  nuke "$HOME_DIR/Library/Safari/History.db-lock"
-
-  # Older on-disk site storage.
-  nuke "$HOME_DIR/Library/Safari/LocalStorage"
-  nuke "$HOME_DIR/Library/Safari/Databases"
-
-  # Container: caches + WebKit storage (IndexedDB / localStorage / SW) + cookies.
+  # Cache (both modes).
+  log "Safari: clearing cache"
   local sub
   shopt -s dotglob nullglob
-  for sub in "$container/Caches/"* "$container/WebKit/"*; do
+  for sub in "$container/Caches/"*; do
     nuke "$sub"
   done
   shopt -u dotglob nullglob
-  nuke "$container/Cookies/Cookies.binarycookies"
+
+  if [ "$MODE" = "full" ]; then
+    log "Safari: wiping history, site storage, and cookies (--full)"
+    nuke "$HOME_DIR/Library/Safari/History.db"
+    nuke "$HOME_DIR/Library/Safari/History.db-wal"
+    nuke "$HOME_DIR/Library/Safari/History.db-shm"
+    nuke "$HOME_DIR/Library/Safari/History.db-lock"
+    nuke "$HOME_DIR/Library/Safari/LocalStorage"
+    nuke "$HOME_DIR/Library/Safari/Databases"
+    shopt -s dotglob nullglob
+    for sub in "$container/WebKit/"*; do
+      nuke "$sub"
+    done
+    shopt -u dotglob nullglob
+    nuke "$container/Cookies/Cookies.binarycookies"
+  fi
 
   log "Safari: done (if entries say 'permission', grant Full Disk Access — see README)"
 }
 
 # --- Run ---------------------------------------------------------------------
 main() {
-  log "=== Starting browser full-wipe ==="
+  if [ "$DRY_RUN" -eq 1 ]; then
+    log "=== DRY RUN: browser cleanup (mode=$MODE) — nothing will be deleted ==="
+  else
+    log "=== Starting browser cleanup (mode=$MODE) ==="
+  fi
 
-  local chrome_run edge_run safari_run
-  chrome_run="$(quit_app 'Google Chrome' 'Google Chrome')"
-  edge_run="$(quit_app 'Microsoft Edge' 'Microsoft Edge')"
-  safari_run="$(quit_app 'Safari' 'Safari')"
+  # In a real run, quit browsers first so their files are unlocked. In a dry
+  # run we leave everything open and just report. Only touch selected browsers.
+  local chrome_run="" edge_run="" safari_run=""
+  if [ "$DRY_RUN" -eq 0 ]; then
+    want chrome && chrome_run="$(quit_app 'Google Chrome' 'Google Chrome')"
+    want edge && edge_run="$(quit_app 'Microsoft Edge' 'Microsoft Edge')"
+    want safari && safari_run="$(quit_app 'Safari' 'Safari')"
+  fi
 
-  wipe_chromium "$HOME_DIR/Library/Application Support/Google/Chrome" \
-    "$HOME_DIR/Library/Caches/Google/Chrome" "Chrome"
-  wipe_chromium "$HOME_DIR/Library/Application Support/Microsoft Edge" \
-    "$HOME_DIR/Library/Caches/Microsoft Edge" "Edge"
-  wipe_safari
+  if want chrome; then
+    wipe_chromium "$HOME_DIR/Library/Application Support/Google/Chrome" \
+      "$HOME_DIR/Library/Caches/Google/Chrome" "Chrome"
+  fi
+  if want edge; then
+    wipe_chromium "$HOME_DIR/Library/Application Support/Microsoft Edge" \
+      "$HOME_DIR/Library/Caches/Microsoft Edge" "Edge"
+  fi
+  want safari && wipe_safari
 
-  # Reopen only the browsers that were running before the wipe.
-  [ -n "$chrome_run" ] && relaunch "Google Chrome"
-  [ -n "$edge_run" ] && relaunch "Microsoft Edge"
-  [ -n "$safari_run" ] && relaunch "Safari"
+  # Reopen only the browsers that were running before the cleanup.
+  if [ "$DRY_RUN" -eq 0 ]; then
+    [ -n "$chrome_run" ] && relaunch "Google Chrome"
+    [ -n "$edge_run" ] && relaunch "Microsoft Edge"
+    [ -n "$safari_run" ] && relaunch "Safari"
+  fi
 
-  log "=== Browser wipe complete ==="
+  log "=== Browser cleanup complete (mode=$MODE) ==="
 }
 
 # Only run when executed directly, not when sourced (so functions are testable).

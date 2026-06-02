@@ -1,17 +1,19 @@
 #!/bin/bash
 #
-# install.sh — install (or update) the daily browser full-wipe.
-# Quits Chrome/Edge/Safari, wipes cache + cookies + site data + history,
-# reopens only the browsers that were running. Daily at a time you choose
-# (default 06:00). Idempotent.
+# install.sh — install (or update) the daily browser cleanup.
+# Quits the selected browsers, clears stale cache (and, with --full, also
+# cookies + history), reopens whichever were running. Daily at a time you
+# choose (default 06:00). Idempotent.
 #
-#   ./install.sh                       # install/update for the current user (prompts for time)
-#   ./install.sh --time 02:30          # install for current user, run at 2:30am
+#   ./install.sh                       # light cleanup, all browsers (prompts for time)
+#   ./install.sh --full                # full wipe: also clear cookies + history (logs you out)
+#   ./install.sh --only chrome,edge    # only these browsers (default: all installed)
+#   ./install.sh --time 02:30          # run daily at 2:30am
 #   sudo ./install.sh --all-users      # install for EVERY user (each in their own session)
 #   ./install.sh uninstall             # remove this user's job + installed script
-#   sudo ./install.sh --all-users uninstall   # remove the all-users install
 #
-# NOTE: Safari needs Full Disk Access granted to /bin/bash — see README.
+# Default mode is "light" — you stay logged in. --full also wipes cookies +
+# history; its Safari paths need Full Disk Access granted to /bin/bash (README).
 #
 # Author:  Kris Armstrong <kris.armstrong@icloud.com>
 # License: Apache-2.0 (SPDX-License-Identifier: Apache-2.0) — see LICENSE
@@ -33,7 +35,7 @@ REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SRC_SCRIPT="$REPO_DIR/$SCRIPT"
 
 usage() {
-  sed -n '3,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '3,16p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit "${1:-0}"
 }
 
@@ -42,11 +44,23 @@ ALL_USERS=0
 ACTION="install"
 HOUR=""
 MINUTE=""
+FULL=0  # --full bakes a full wipe into the scheduled job (default: light)
+ONLY="" # --only restricts the scheduled job to these browsers
 
 while [ $# -gt 0 ]; do
   case "$1" in
     --all-users) ALL_USERS=1 ;;
     uninstall | --uninstall) ACTION="uninstall" ;;
+    --full) FULL=1 ;;
+    --only)
+      [ $# -ge 2 ] || {
+        echo "ERROR: --only needs a list (chrome,edge,safari)" >&2
+        exit 1
+      }
+      ONLY="$2"
+      shift
+      ;;
+    --only=*) ONLY="${1#*=}" ;;
     --time)
       [ $# -ge 2 ] || {
         echo "ERROR: --time needs HH:MM" >&2
@@ -69,6 +83,11 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+# Build the extra ProgramArguments the scheduled job passes to the cleaner.
+SCRIPT_ARGS=()
+[ "$FULL" -eq 1 ] && SCRIPT_ARGS+=(--full)
+[ -n "$ONLY" ] && SCRIPT_ARGS+=(--only "$ONLY")
 
 # ---- Resolve install scope (paths + launchd domain) -------------------------
 if [ "$ALL_USERS" -eq 1 ]; then
@@ -152,6 +171,17 @@ else
     <string>$LOGS_DIR/clear-browsers.err.log</string>"
 fi
 
+# Render any baked cleaner args (--full / --only LIST) as <string> entries.
+# Length-guarded for bash 3.2 (macOS), where expanding an empty array under
+# `set -u` would abort.
+ARG_STRINGS=""
+if [ "${#SCRIPT_ARGS[@]}" -gt 0 ]; then
+  for a in "${SCRIPT_ARGS[@]}"; do
+    ARG_STRINGS+="
+        <string>$a</string>"
+  done
+fi
+
 echo "Writing launchd job → $PLIST"
 cat >"$PLIST" <<PLIST_EOF
 <?xml version="1.0" encoding="UTF-8"?>
@@ -163,7 +193,7 @@ cat >"$PLIST" <<PLIST_EOF
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>$DEST_SCRIPT</string>
+        <string>$DEST_SCRIPT</string>$ARG_STRINGS
     </array>
     <!-- Daily at $HOUR:$(printf '%02d' "$MINUTE"). If the Mac is off/asleep then,
          launchd runs the missed job once after it next boots/wakes. -->
@@ -194,20 +224,27 @@ fi
 
 echo
 SCHED="$(printf '%02d:%02d' "$HOUR" "$MINUTE")"
+MODE_DESC="light (stay logged in)"
+[ "$FULL" -eq 1 ] && MODE_DESC="FULL wipe (clears cookies + history)"
 if [ "$ALL_USERS" -eq 1 ]; then
   echo "Installed system-wide (all users), scheduled daily at $SCHED."
   echo "  It runs for each user in their own session; new logins pick it up automatically."
 else
   echo "Installed for $(id -un), scheduled daily at $SCHED."
 fi
+echo "  Mode:       $MODE_DESC"
+echo "  Browsers:   ${ONLY:-all installed}"
 if [ -n "$TARGET_UID" ]; then
   echo "  Run now:    launchctl kickstart -k gui/$TARGET_UID/$LABEL"
 fi
+echo "  Preview:    ~/Library/Scripts/clear-browsers.sh --dry-run"
 echo "  Watch log:  tail -f ~/Library/Logs/clear-browsers.log"
 if [ "$ALL_USERS" -eq 1 ]; then
   echo "  Uninstall:  sudo $REPO_DIR/install.sh --all-users uninstall"
 else
   echo "  Uninstall:  $REPO_DIR/install.sh uninstall"
 fi
-echo
-echo "REMINDER: grant Full Disk Access to /bin/bash for the Safari wipe (README)."
+if [ "$FULL" -eq 1 ]; then
+  echo
+  echo "REMINDER: --full needs Full Disk Access for /bin/bash for the Safari wipe (README)."
+fi
