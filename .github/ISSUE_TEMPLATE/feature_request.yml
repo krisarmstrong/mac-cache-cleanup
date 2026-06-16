@@ -1,19 +1,21 @@
-name: Feature request
-description: Suggest a new tool, a new app to clean, or an improvement.
-labels: ["enhancement"]
+name: Feature
+description: Propose a new capability or meaningful improvement for Mac Cache Cleanup
+title: "Feature: "
+labels: ["type: feature", "status: needs-triage"]
 body:
   - type: textarea
     id: problem
     attributes:
-      label: What problem would this solve?
-      description: What are you trying to do that's awkward or impossible today?
+      label: Problem
+      description: What user or maintainer problem should this solve?
+      placeholder: Describe the problem without assuming a specific implementation.
     validations:
       required: true
   - type: textarea
-    id: proposal
+    id: outcome
     attributes:
-      label: Proposed solution
-      description: What would you like to see? (e.g. a new package, a flag, a different schedule option.)
+      label: Desired Outcome
+      description: What should be true when this is done?
     validations:
       required: true
   - type: dropdown
@@ -21,17 +23,56 @@ body:
     attributes:
       label: Area
       options:
-        - New app/tool to clean
-        - clear-outlook-cache
-        - clear-teams-cache
-        - clear-browsers
-        - Installer / scheduling
-        - Docs
-        - Other
+        - area: api
+        - area: build
+        - area: ci
+        - area: cli
+        - area: config
+        - area: data
+        - area: docs
+        - area: frontend
+        - area: infra
+        - area: packaging
+        - area: security
+        - area: tests
+        - area: tooling
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - priority: critical
+        - priority: high
+        - priority: medium
+        - priority: low
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Use checkboxes for observable behavior.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
     validations:
       required: true
   - type: textarea
     id: alternatives
     attributes:
-      label: Alternatives considered
-      description: Anything you've already tried or ruled out (optional).
+      label: Alternatives Considered
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I described the user or maintainer problem, not only a proposed implementation.
+          required: true
