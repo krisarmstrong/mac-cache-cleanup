@@ -1,59 +1,96 @@
-name: Bug report
-description: Something isn't clearing, the schedule isn't firing, or the installer failed.
-labels: ["bug"]
+name: Defect
+description: Report a reproducible defect or regression in Mac Cache Cleanup
+title: "Defect: "
+labels: ["type: defect", "status: needs-triage"]
 body:
-  - type: markdown
-    attributes:
-      value: |
-        Thanks for the report! Please fill in what you can — the log and macOS
-        version are the most useful bits.
-  - type: dropdown
-    id: package
-    attributes:
-      label: Which tool?
-      options:
-        - clear-outlook-cache
-        - clear-teams-cache
-        - clear-browsers
-        - install-all (more than one)
-        - not sure
-    validations:
-      required: true
-  - type: input
-    id: macos
-    attributes:
-      label: macOS version
-      placeholder: "e.g. 15.5 (Sequoia)"
-    validations:
-      required: true
-  - type: dropdown
-    id: scope
-    attributes:
-      label: Install scope
-      options:
-        - Single user (default)
-        - All users (sudo --all-users)
-    validations:
-      required: true
   - type: textarea
-    id: what-happened
+    id: summary
     attributes:
-      label: What happened?
-      description: What did you expect, and what happened instead?
+      label: Summary
+      description: What broke, and what impact does it have?
+      placeholder: Describe the defect in one or two sentences.
     validations:
       required: true
-  - type: textarea
-    id: logs
-    attributes:
-      label: Relevant log output
-      description: |
-        From `~/Library/Logs/<tool>.log` (e.g. clear-outlook-cache.log). This is
-        rendered as code, so no backticks needed.
-      render: text
   - type: textarea
     id: steps
     attributes:
-      label: Steps to reproduce
+      label: Steps to Reproduce
+      description: Provide the shortest reliable path to reproduce the defect.
       placeholder: |
-        1. ./install.sh --time ...
+        1. ...
         2. ...
+        3. ...
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual Behavior
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - area: api
+        - area: build
+        - area: ci
+        - area: cli
+        - area: config
+        - area: data
+        - area: docs
+        - area: frontend
+        - area: infra
+        - area: packaging
+        - area: security
+        - area: tests
+        - area: tooling
+    validations:
+      required: true
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - severity: critical
+        - severity: high
+        - severity: medium
+        - severity: low
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or Commit
+      placeholder: v1.2.3, commit SHA, deployed URL, or "main"
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, browser, device, deployment target, or runtime version
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or Output
+      description: Paste only relevant output. Redact secrets.
+      render: shell
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional Context
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Pre-submission Checklist
+      options:
+        - label: I searched existing issues and did not find a duplicate.
+          required: true
+        - label: I included enough detail for someone else to reproduce or investigate.
+          required: true
